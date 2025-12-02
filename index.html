@@ -309,23 +309,32 @@
                 // Handle receipt upload if provided
                 const receiptFile = receiptInput.files[0];
                 if (receiptFile) {
-                    // Compress image
-                    const compressedFile = await compressImage(receiptFile);
-                    
-                    // Upload to Supabase Storage
-                    const fileName = `${Date.now()}_${compressedFile.name}`;
-                    const { data: uploadData, error: uploadError } = await supabaseClient.storage
-                        .from('receipts')
-                        .upload(fileName, compressedFile);
-                    
-                    if (uploadError) throw uploadError;
-                    
-                    // Get public URL
-                    const { data: { publicUrl } } = supabaseClient.storage
-                        .from('receipts')
-                        .getPublicUrl(fileName);
-                    
-                    formData.receipt_image = publicUrl;
+                    try {
+                        // Compress image
+                        const compressedFile = await compressImage(receiptFile);
+                        
+                        // Upload to Supabase Storage
+                        const fileName = `${Date.now()}_${compressedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+                        const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                            .from('receipts')
+                            .upload(fileName, compressedFile);
+                        
+                        if (uploadError) {
+                            console.error('Upload error:', uploadError);
+                            // Continue without image if upload fails
+                            showMessage('Form submitted but image upload failed. Proceeding without image.', 'success');
+                        } else {
+                            // Get public URL
+                            const { data: { publicUrl } } = supabaseClient.storage
+                                .from('receipts')
+                                .getPublicUrl(fileName);
+                            
+                            formData.receipt_image = publicUrl;
+                        }
+                    } catch (uploadErr) {
+                        console.error('Image processing error:', uploadErr);
+                        // Continue without image
+                    }
                 }
                 
                 // Insert submission
