@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Free Auth System</title>
+    <title>Guest Submission Form</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
@@ -11,7 +11,6 @@
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -21,341 +20,331 @@
             justify-content: center;
             padding: 20px;
         }
-
         .container {
             background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
             width: 100%;
-            max-width: 400px;
             padding: 40px;
         }
-
         h1 {
             color: #333;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             font-size: 28px;
         }
-
         .subtitle {
             color: #666;
-            margin-bottom: 32px;
+            margin-bottom: 30px;
             font-size: 14px;
         }
-
         .form-group {
             margin-bottom: 20px;
         }
-
         label {
             display: block;
+            margin-bottom: 8px;
             color: #333;
             font-weight: 500;
-            margin-bottom: 8px;
             font-size: 14px;
         }
-
-        input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 15px;
-            transition: all 0.3s;
+        .required {
+            color: #e74c3c;
         }
-
-        input:focus {
+        input[type="text"],
+        input[type="email"],
+        input[type="datetime-local"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus,
+        select:focus {
             outline: none;
             border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
-
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        .file-input-button {
+            background: #f8f9fa;
+            border: 2px dashed #cbd5e0;
+            padding: 30px;
+            text-align: center;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .file-input-button:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+        .file-name {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #666;
+        }
+        .preview-image {
+            max-width: 100%;
+            margin-top: 10px;
+            border-radius: 6px;
+            display: none;
+        }
         button {
             width: 100%;
             padding: 14px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s;
         }
-
         button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
         }
-
-        button:active {
-            transform: translateY(0);
-        }
-
         button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
-
-        .tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 24px;
-            background: #f5f5f5;
-            padding: 4px;
-            border-radius: 8px;
-        }
-
-        .tab {
-            flex: 1;
-            padding: 10px;
-            background: transparent;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            color: #666;
-            transition: all 0.3s;
-        }
-
-        .tab.active {
-            background: white;
-            color: #667eea;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
         .message {
-            padding: 12px 16px;
-            border-radius: 8px;
+            padding: 12px;
+            border-radius: 6px;
             margin-bottom: 20px;
-            font-size: 14px;
             display: none;
         }
-
         .message.success {
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
-            display: block;
         }
-
         .message.error {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
-            display: block;
         }
-
-        .dashboard {
-            display: none;
+        .admin-link {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
         }
-
-        .dashboard.active {
-            display: block;
-        }
-
-        .user-info {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .user-info p {
-            margin: 8px 0;
-            color: #333;
-        }
-
-        .user-info strong {
+        .admin-link a {
             color: #667eea;
+            text-decoration: none;
         }
-
-        .link-button {
-            background: none;
-            color: #667eea;
+        .admin-link a:hover {
             text-decoration: underline;
-            font-size: 14px;
-            margin-top: 16px;
-            padding: 0;
-        }
-
-        .link-button:hover {
-            transform: none;
-            box-shadow: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div id="authForm">
-            <h1>Welcome</h1>
-            <p class="subtitle">Sign in to your account or create a new one</p>
-
-            <div class="tabs">
-                <button class="tab active" onclick="switchTab('login')">Login</button>
-                <button class="tab" onclick="switchTab('signup')">Sign Up</button>
+        <h1>Submit Your Information</h1>
+        <p class="subtitle">Please fill out the form below</p>
+        
+        <div id="message" class="message"></div>
+        
+        <form id="submissionForm">
+            <div class="form-group">
+                <label for="name">Name <span class="required">*</span></label>
+                <input type="text" id="name" name="name" required>
             </div>
-
-            <div id="message" class="message"></div>
-
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" required placeholder="you@example.com">
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" required placeholder="••••••••" minlength="6">
-                </div>
-                <button type="submit" id="submitBtn">Sign In</button>
-                <button type="button" class="link-button" onclick="resetPassword()">Forgot password?</button>
-            </form>
-        </div>
-
-        <div id="dashboard" class="dashboard">
-            <h1>Dashboard</h1>
-            <p class="subtitle">You're logged in!</p>
-
-            <div class="user-info">
-                <p><strong>Email:</strong> <span id="userEmail"></span></p>
-                <p><strong>User ID:</strong> <span id="userId"></span></p>
-                <p><strong>Status:</strong> <span style="color: #28a745;">✓ Authenticated</span></p>
+            
+            <div class="form-group">
+                <label for="email">Email <span class="required">*</span></label>
+                <input type="email" id="email" name="email" required>
             </div>
-
-            <button onclick="logout()">Sign Out</button>
+            
+            <div class="form-group">
+                <label for="product">Select Product <span class="required">*</span></label>
+                <select id="product" name="product" required>
+                    <option value="">Choose a product...</option>
+                    <option value="Product A">Product A</option>
+                    <option value="Product B">Product B</option>
+                    <option value="Product C">Product C</option>
+                    <option value="Product D">Product D</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="datetime">Date & Time (Optional)</label>
+                <input type="datetime-local" id="datetime" name="datetime">
+            </div>
+            
+            <div class="form-group">
+                <label for="receipt">Upload Receipt (Optional)</label>
+                <div class="file-input-wrapper">
+                    <label for="receipt" class="file-input-button">
+                        <div>📸 Click to upload receipt image</div>
+                        <div style="font-size: 12px; color: #999; margin-top: 5px;">Image will be compressed automatically</div>
+                    </label>
+                    <input type="file" id="receipt" name="receipt" accept="image/*">
+                </div>
+                <div id="fileName" class="file-name"></div>
+                <img id="preview" class="preview-image" alt="Preview">
+            </div>
+            
+            <button type="submit" id="submitBtn">Submit Form</button>
+        </form>
+        
+        <div class="admin-link">
+            <a href="admin-login.html">Admin Login</a>
         </div>
     </div>
 
     <script>
-        // REPLACE THESE WITH YOUR ACTUAL CREDENTIALS FROM STEP 2
-        const SUPABASE_URL = 'https://kkfneinojxniotcbmfeq.supabase.co'; // Your Project URL
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrZm5laW5vanhuaW90Y2JtZmVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1OTk1NTEsImV4cCI6MjA4MDE3NTU1MX0.h_fZXF6VjZO4LLQxUYxnbXKfGX-EVUlNO-LDxI0cBYU'; // Your anon/public key
+        // ⚠️ REPLACE THESE WITH YOUR SUPABASE CREDENTIALS
+        const SUPABASE_URL = 'https://lkelfnsrauxwqpmvieck.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZWxmbnNyYXV4d3FwbXZpZWNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2NDUxMTQsImV4cCI6MjA4MDIyMTExNH0.td0ULBGau-Bm3k11VTJtvDN516NYvukgLIOFVHzYvVo';
         
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        let currentMode = 'login';
-
-        // Check if user is already logged in
-        checkUser();
-
-        async function checkUser() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                showDashboard(user);
-            }
-        }
-
-        function switchTab(mode) {
-            currentMode = mode;
-            const tabs = document.querySelectorAll('.tab');
-            tabs.forEach(tab => tab.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            const btn = document.getElementById('submitBtn');
-            btn.textContent = mode === 'login' ? 'Sign In' : 'Sign Up';
-            
-            hideMessage();
-        }
-
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const btn = document.getElementById('submitBtn');
-            
-            btn.disabled = true;
-            btn.textContent = 'Processing...';
-
-            try {
-                if (currentMode === 'login') {
-                    const { data, error } = await supabase.auth.signInWithPassword({
-                        email,
-                        password
-                    });
-                    
-                    if (error) throw error;
-                    
-                    showMessage('Login successful!', 'success');
-                    await sendNotification(email, 'login');
-                    showDashboard(data.user);
-                } else {
-                    const { data, error } = await supabase.auth.signUp({
-                        email,
-                        password
-                    });
-                    
-                    if (error) throw error;
-                    
-                    showMessage('Account created! Please check your email to verify.', 'success');
-                    await sendNotification(email, 'signup');
-                }
-            } catch (error) {
-                showMessage(error.message, 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = currentMode === 'login' ? 'Sign In' : 'Sign Up';
+        const form = document.getElementById('submissionForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const messageDiv = document.getElementById('message');
+        const receiptInput = document.getElementById('receipt');
+        const fileNameDiv = document.getElementById('fileName');
+        const previewImg = document.getElementById('preview');
+        
+        // Handle file selection and preview
+        receiptInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileNameDiv.textContent = `Selected: ${file.name}`;
+                
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                    previewImg.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
             }
         });
-
-        async function sendNotification(email, type) {
-            // Call your edge function or API route that uses Resend
-            // This is a placeholder - you'll need to create a Supabase Edge Function
-            try {
-                const { data, error } = await supabase.functions.invoke('send-email', {
-                    body: { email, type }
-                });
-                console.log('Notification sent:', data);
-            } catch (error) {
-                console.error('Notification error:', error);
-            }
+        
+        // Compress image
+        async function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        // Resize if larger than 1200px
+                        const maxSize = 1200;
+                        if (width > height && width > maxSize) {
+                            height *= maxSize / width;
+                            width = maxSize;
+                        } else if (height > maxSize) {
+                            width *= maxSize / height;
+                            height = maxSize;
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        canvas.toBlob((blob) => {
+                            resolve(new File([blob], file.name, {
+                                type: 'image/jpeg',
+                                lastModified: Date.now()
+                            }));
+                        }, 'image/jpeg', 0.7); // 70% quality
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
         }
-
-        async function resetPassword() {
-            const email = document.getElementById('email').value;
-            if (!email) {
-                showMessage('Please enter your email address first', 'error');
-                return;
-            }
-
+        
+        // Show message
+        function showMessage(text, type) {
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Handle form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+            
             try {
-                const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                    redirectTo: window.location.origin,
-                });
+                const formData = {
+                    name: document.getElementById('name').value,
+                    email: document.getElementById('email').value,
+                    product: document.getElementById('product').value,
+                    date_time: document.getElementById('datetime').value || null,
+                    receipt_image: null
+                };
+                
+                // Handle receipt upload if provided
+                const receiptFile = receiptInput.files[0];
+                if (receiptFile) {
+                    // Compress image
+                    const compressedFile = await compressImage(receiptFile);
+                    
+                    // Upload to Supabase Storage
+                    const fileName = `${Date.now()}_${compressedFile.name}`;
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from('receipts')
+                        .upload(fileName, compressedFile);
+                    
+                    if (uploadError) throw uploadError;
+                    
+                    // Get public URL
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('receipts')
+                        .getPublicUrl(fileName);
+                    
+                    formData.receipt_image = publicUrl;
+                }
+                
+                // Insert submission
+                const { data, error } = await supabase
+                    .from('submissions')
+                    .insert([formData])
+                    .select();
                 
                 if (error) throw error;
-                showMessage('Password reset email sent! Check your inbox.', 'success');
+                
+                showMessage('Form submitted successfully!', 'success');
+                form.reset();
+                fileNameDiv.textContent = '';
+                previewImg.style.display = 'none';
+                
             } catch (error) {
-                showMessage(error.message, 'error');
+                console.error('Error:', error);
+                showMessage('Error submitting form. Please try again.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Form';
             }
-        }
-
-        async function logout() {
-            await supabase.auth.signOut();
-            document.getElementById('authForm').style.display = 'block';
-            document.getElementById('dashboard').classList.remove('active');
-            document.getElementById('loginForm').reset();
-            hideMessage();
-        }
-
-        function showDashboard(user) {
-            document.getElementById('authForm').style.display = 'none';
-            document.getElementById('dashboard').classList.add('active');
-            document.getElementById('userEmail').textContent = user.email;
-            document.getElementById('userId').textContent = user.id;
-        }
-
-        function showMessage(text, type) {
-            const msg = document.getElementById('message');
-            msg.textContent = text;
-            msg.className = `message ${type}`;
-        }
-
-        function hideMessage() {
-            const msg = document.getElementById('message');
-            msg.className = 'message';
-        }
+        });
     </script>
 </body>
 </html>
