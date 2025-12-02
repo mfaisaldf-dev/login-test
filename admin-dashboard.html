@@ -322,25 +322,45 @@
 
     <script>
         // ⚠️ REPLACE THESE WITH YOUR SUPABASE CREDENTIALS
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        const SUPABASE_URL = 'https://lkelfnsrauxwqpmvieck.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZWxmbnNyYXV4d3FwbXZpZWNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2NDUxMTQsImV4cCI6MjA4MDIyMTExNH0.td0ULBGau-Bm3k11VTJtvDN516NYvukgLIOFVHzYvVo';
         
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         let allSubmissions = [];
         
+        // CRITICAL: Check authentication immediately
+        (function() {
+            const token = localStorage.getItem('adminToken');
+            const loginTime = localStorage.getItem('adminLoginTime');
+            const currentTime = Date.now();
+            
+            // Check if token exists and is not expired (24 hours)
+            if (!token || !loginTime || (currentTime - loginTime) > 86400000) {
+                localStorage.removeItem('adminToken');
+                localStorage.removeItem('adminEmail');
+                localStorage.removeItem('adminLoginTime');
+                window.location.replace('admin-login.html');
+                throw new Error('Unauthorized access');
+            }
+        })();
+        
         // Check authentication
         function checkAuth() {
             const token = localStorage.getItem('adminToken');
-            if (!token) {
-                window.location.href = 'admin-login.html';
+            const loginTime = localStorage.getItem('adminLoginTime');
+            if (!token || !loginTime) {
+                window.location.replace('admin-login.html');
+                return false;
             }
+            return true;
         }
         
         function logout() {
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminEmail');
-            window.location.href = 'admin-login.html';
+            localStorage.removeItem('adminLoginTime');
+            window.location.replace('admin-login.html');
         }
         
         // Load submissions
@@ -495,21 +515,22 @@
         }
         
         // Initialize
-        checkAuth();
-        loadSubmissions();
-        
-        // Real-time updates (optional)
-        const subscription = supabase
-            .channel('submissions_changes')
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'submissions' 
-            }, payload => {
-                console.log('Change received!', payload);
-                loadSubmissions();
-            })
-            .subscribe();
+        if (checkAuth()) {
+            loadSubmissions();
+            
+            // Real-time updates (optional)
+            const subscription = supabase
+                .channel('submissions_changes')
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'submissions' 
+                }, payload => {
+                    console.log('Change received!', payload);
+                    loadSubmissions();
+                })
+                .subscribe();
+        }
     </script>
 </body>
 </html>
