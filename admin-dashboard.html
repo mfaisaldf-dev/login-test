@@ -427,11 +427,19 @@
 
     <div id="assignModal" class="assign-modal">
         <div class="assign-modal-content">
-            <h3>Assign Driver</h3>
-            <div id="driverList" class="driver-list"></div>
+            <h3>⚠️ Assign Driver Required</h3>
+            <div class="warning-text">
+                This submission has a time slot selected. You must assign a driver before approving.
+            </div>
+            <div class="driver-select-group">
+                <label for="driverSelect">Select Driver <span style="color: red;">*</span></label>
+                <select id="driverSelect">
+                    <option value="">-- Choose a driver --</option>
+                </select>
+            </div>
             <div class="assign-actions">
                 <button class="btn" onclick="closeAssignModal()" style="background: #6c757d; color: white;">Cancel</button>
-                <button class="btn btn-assign" onclick="confirmAssignment()">Assign Driver</button>
+                <button class="btn btn-success" onclick="confirmApprovalWithDriver()">Approve & Assign</button>
             </div>
         </div>
     </div>
@@ -639,17 +647,26 @@
                         </div>
                         <div class="submission-footer">
                             <div class="action-buttons">
-                                <button class="btn btn-approve" onclick="updateStatus('${submission.id}', 'approved')" ${submission.status === 'approved' ? 'disabled' : ''}>
-                                    ${submission.status === 'approved' ? '✓ Approved' : 'Approve'}
-                                </button>
+                                ${submission.status === 'pending' && hasTimeSlot ? `
+                                    <button class="btn btn-approve" onclick="approveWithDriver('${submission.id}')">
+                                        ✓ Approve (Assign Driver)
+                                    </button>
+                                ` : submission.status === 'pending' ? `
+                                    <button class="btn btn-approve" onclick="updateStatus('${submission.id}', 'approved')">
+                                        ✓ Approve
+                                    </button>
+                                ` : `
+                                    <button class="btn btn-approve" disabled>
+                                        ✓ Approved
+                                    </button>
+                                `}
                                 <button class="btn btn-reject" onclick="updateStatus('${submission.id}', 'rejected')" ${submission.status === 'rejected' ? 'disabled' : ''}>
                                     ${submission.status === 'rejected' ? '✗ Rejected' : 'Reject'}
                                 </button>
-                                ${submission.status === 'approved' && !submission.driver_id && hasTimeSlot ? `
-                                    <button class="btn btn-assign" onclick="openAssignModal('${submission.id}')">Assign Driver</button>
-                                ` : ''}
-                                ${submission.status === 'approved' && !submission.driver_id && !hasTimeSlot ? `
-                                    <button class="btn btn-assign" onclick="openAssignModal('${submission.id}')" style="opacity: 0.5;" title="Optional: No time slot selected">Assign Driver (Optional)</button>
+                                ${submission.status === 'approved' && submission.driver_id ? `
+                                    <button class="btn btn-assign" onclick="reassignDriver('${submission.id}')" style="background: #ffc107; color: #000;">
+                                        Change Driver
+                                    </button>
                                 ` : ''}
                             </div>
                         </div>
