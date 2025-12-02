@@ -743,6 +743,21 @@
             event.currentTarget.classList.add('selected');
         }
 
+                // When clicking "Approve (Assign Driver)"
+        function approveWithDriver(submissionId) {
+            const driverSelect = document.getElementById('driverSelect');
+            driverSelect.innerHTML = '<option value="">-- Choose a driver --</option>';
+            
+            allDrivers.forEach(driver => {
+                const option = document.createElement('option');
+                option.value = driver.id;
+                option.textContent = `${driver.name} (${driver.email}) - ${driver.is_available ? 'Available' : 'Busy'}`;
+                driverSelect.appendChild(option);
+            });
+            
+            document.getElementById('assignModal').classList.add('active');
+        }
+
         async function confirmAssignment() {
             if (!selectedDriverId) {
                 alert('Please select a driver');
