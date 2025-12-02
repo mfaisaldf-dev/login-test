@@ -311,55 +311,46 @@
             margin-bottom: 20px;
             color: #333;
         }
-        .driver-list {
-            max-height: 300px;
-            overflow-y: auto;
+        .driver-select-group {
             margin-bottom: 20px;
         }
-        .driver-item {
-            padding: 15px;
+        .driver-select-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .driver-select-group select {
+            width: 100%;
+            padding: 12px;
             border: 2px solid #e1e8ed;
             border-radius: 6px;
-            margin-bottom: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
+            font-size: 14px;
         }
-        .driver-item:hover {
+        .driver-select-group select:focus {
+            outline: none;
             border-color: #667eea;
-            background: #f8f9fa;
-        }
-        .driver-item.selected {
-            border-color: #667eea;
-            background: #e7f0ff;
-        }
-        .driver-name {
-            font-weight: 600;
-            color: #333;
-        }
-        .driver-email {
-            font-size: 13px;
-            color: #666;
-            margin-top: 4px;
-        }
-        .driver-status {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 11px;
-            margin-top: 4px;
-        }
-        .driver-available {
-            background: #d4edda;
-            color: #155724;
-        }
-        .driver-busy {
-            background: #f8d7da;
-            color: #721c24;
         }
         .assign-actions {
             display: flex;
             gap: 10px;
             justify-content: flex-end;
+        }
+        .warning-text {
+            color: #856404;
+            background: #fff3cd;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #218838;
         }
     </style>
 </head>
@@ -408,10 +399,6 @@
                 <label for="productFilter">Product:</label>
                 <select id="productFilter" onchange="filterSubmissions()">
                     <option value="all">All Products</option>
-                    <option value="Product A">Product A</option>
-                    <option value="Product B">Product B</option>
-                    <option value="Product C">Product C</option>
-                    <option value="Product D">Product D</option>
                 </select>
             </div>
         </div>
@@ -449,21 +436,18 @@
         const SUPABASE_URL = 'https://lkelfnsrauxwqpmvieck.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZWxmbnNyYXV4d3FwbXZpZWNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2NDUxMTQsImV4cCI6MjA4MDIyMTExNH0.td0ULBGau-Bm3k11VTJtvDN516NYvukgLIOFVHzYvVo';
         
-        // Initialize Supabase client
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        // Verify client is initialized
-        console.log('Supabase client initialized:', supabaseClient ? 'Success' : 'Failed');
-        
         let allSubmissions = [];
-        
+        let allDrivers = [];
+        let currentSubmissionId = null;
+
         // CRITICAL: Check authentication immediately
         (function() {
             const token = localStorage.getItem('adminToken');
             const loginTime = localStorage.getItem('adminLoginTime');
             const currentTime = Date.now();
             
-            // Check if token exists and is not expired (24 hours)
             if (!token || !loginTime || (currentTime - loginTime) > 86400000) {
                 localStorage.removeItem('adminToken');
                 localStorage.removeItem('adminEmail');
@@ -473,7 +457,6 @@
             }
         })();
         
-        // Check authentication
         function checkAuth() {
             const token = localStorage.getItem('adminToken');
             const loginTime = localStorage.getItem('adminLoginTime');
@@ -483,14 +466,14 @@
             }
             return true;
         }
-        
+
         function logout() {
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminEmail');
             localStorage.removeItem('adminLoginTime');
             window.location.replace('admin-login.html');
         }
-        
+
         // Load submissions
         async function loadSubmissions() {
             try {
@@ -514,6 +497,7 @@
                 
                 allSubmissions = data;
                 updateStats();
+                loadProductFilter();
                 filterSubmissions();
                 
                 document.getElementById('loading').style.display = 'none';
@@ -538,7 +522,24 @@
                 console.error('Error loading drivers:', error);
             }
         }
-        
+
+        // Load product filter options
+        function loadProductFilter() {
+            const products = [...new Set(allSubmissions.map(s => s.product))];
+            const productFilter = document.getElementById('productFilter');
+            const currentValue = productFilter.value;
+            
+            productFilter.innerHTML = '<option value="all">All Products</option>';
+            products.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product;
+                option.textContent = product;
+                productFilter.appendChild(option);
+            });
+            
+            productFilter.value = currentValue;
+        }
+
         // Update statistics
         function updateStats() {
             const total = allSubmissions.length;
@@ -551,7 +552,7 @@
             document.getElementById('approvedCount').textContent = approved;
             document.getElementById('rejectedCount').textContent = rejected;
         }
-        
+
         // Filter submissions
         function filterSubmissions() {
             const statusFilter = document.getElementById('statusFilter').value;
@@ -569,7 +570,7 @@
             
             displaySubmissions(filtered);
         }
-        
+
         // Display submissions
         function displaySubmissions(submissions) {
             const container = document.getElementById('submissions');
@@ -674,8 +675,8 @@
                 `;
             }).join('');
         }
-        
-        // Update submission status
+
+        // Update submission status (for non-time-slot submissions)
         async function updateStatus(id, status) {
             try {
                 const { error } = await supabaseClient
@@ -685,7 +686,6 @@
                 
                 if (error) throw error;
                 
-                // Update local data
                 const submission = allSubmissions.find(s => s.id === id);
                 if (submission) {
                     submission.status = status;
@@ -699,51 +699,101 @@
                 alert('Error updating submission status');
             }
         }
-        
-        // Image modal functions
-        function openModal(imageUrl) {
-            document.getElementById('modalImage').src = imageUrl;
-            document.getElementById('imageModal').classList.add('active');
-        }
-        
-        function closeModal() {
-            document.getElementById('imageModal').classList.remove('active');
+
+        // Approve with driver assignment (for time slot submissions)
+        function approveWithDriver(submissionId) {
+            currentSubmissionId = submissionId;
+            
+            const driverSelect = document.getElementById('driverSelect');
+            driverSelect.innerHTML = '<option value="">-- Choose a driver --</option>';
+            
+            const availableDrivers = allDrivers.filter(d => d.is_available);
+            
+            if (availableDrivers.length === 0) {
+                driverSelect.innerHTML += '<option value="" disabled>No available drivers at the moment</option>';
+            }
+            
+            availableDrivers.forEach(driver => {
+                const option = document.createElement('option');
+                option.value = driver.id;
+                option.textContent = `${driver.name} (${driver.email})`;
+                driverSelect.appendChild(option);
+            });
+            
+            const busyDrivers = allDrivers.filter(d => !d.is_available);
+            if (busyDrivers.length > 0) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = '--- Busy Drivers ---';
+                driverSelect.appendChild(optgroup);
+                
+                busyDrivers.forEach(driver => {
+                    const option = document.createElement('option');
+                    option.value = driver.id;
+                    option.textContent = `${driver.name} (${driver.email}) - Busy`;
+                    option.style.color = '#999';
+                    driverSelect.appendChild(option);
+                });
+            }
+            
+            document.getElementById('assignModal').classList.add('active');
         }
 
-        // Driver assignment functions
-        function openAssignModal(submissionId) {
+        // Reassign driver (for already approved submissions)
+        function reassignDriver(submissionId) {
             currentSubmissionId = submissionId;
-            selectedDriverId = null;
             
-            const driverList = document.getElementById('driverList');
-            driverList.innerHTML = allDrivers.map(driver => `
-                <div class="driver-item" onclick="selectDriver('${driver.id}')">
-                    <div class="driver-name">${driver.name}</div>
-                    <div class="driver-email">${driver.email}</div>
-                    <span class="driver-status ${driver.is_available ? 'driver-available' : 'driver-busy'}">
-                        ${driver.is_available ? 'Available' : 'Busy'}
-                    </span>
-                </div>
-            `).join('');
+            const driverSelect = document.getElementById('driverSelect');
+            driverSelect.innerHTML = '<option value="">-- Choose a driver --</option>';
+            
+            const availableDrivers = allDrivers.filter(d => d.is_available);
+            
+            if (availableDrivers.length === 0) {
+                driverSelect.innerHTML += '<option value="" disabled>No available drivers at the moment</option>';
+            }
+            
+            availableDrivers.forEach(driver => {
+                const option = document.createElement('option');
+                option.value = driver.id;
+                option.textContent = `${driver.name} (${driver.email})`;
+                driverSelect.appendChild(option);
+            });
+            
+            const busyDrivers = allDrivers.filter(d => !d.is_available);
+            if (busyDrivers.length > 0) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = '--- Busy Drivers ---';
+                driverSelect.appendChild(optgroup);
+                
+                busyDrivers.forEach(driver => {
+                    const option = document.createElement('option');
+                    option.value = driver.id;
+                    option.textContent = `${driver.name} (${driver.email}) - Busy`;
+                    option.style.color = '#999';
+                    driverSelect.appendChild(option);
+                });
+            }
+            
+            document.querySelector('.assign-modal-content h3').textContent = 'Change Driver Assignment';
+            document.querySelector('.warning-text').textContent = 'Select a new driver for this submission.';
+            document.querySelector('.assign-actions .btn-success').textContent = 'Update Driver';
             
             document.getElementById('assignModal').classList.add('active');
         }
 
         function closeAssignModal() {
             document.getElementById('assignModal').classList.remove('active');
+            document.getElementById('driverSelect').value = '';
             currentSubmissionId = null;
-            selectedDriverId = null;
+            
+            document.querySelector('.assign-modal-content h3').textContent = '⚠️ Assign Driver Required';
+            document.querySelector('.warning-text').textContent = 'This submission has a time slot selected. You must assign a driver before approving.';
+            document.querySelector('.assign-actions .btn-success').textContent = 'Approve & Assign';
         }
 
-        function selectDriver(driverId) {
-            selectedDriverId = driverId;
-            document.querySelectorAll('.driver-item').forEach(item => {
-                item.classList.remove('selected');
-            });
-            event.currentTarget.classList.add('selected');
-        }
-
-        async function confirmAssignment() {
+        async function confirmApprovalWithDriver() {
+            const driverSelect = document.getElementById('driverSelect');
+            const selectedDriverId = driverSelect.value;
+            
             if (!selectedDriverId) {
                 alert('Please select a driver');
                 return;
@@ -753,6 +803,7 @@
                 const { error } = await supabaseClient
                     .from('submissions')
                     .update({ 
+                        status: 'approved',
                         driver_id: selectedDriverId,
                         assigned_at: new Date().toISOString(),
                         work_status: 'assigned'
@@ -763,36 +814,27 @@
                 
                 closeAssignModal();
                 loadSubmissions();
-                alert('Driver assigned successfully!');
+                alert('Submission approved and driver assigned successfully!');
             } catch (error) {
-                console.error('Error assigning driver:', error);
-                alert('Error assigning driver');
+                console.error('Error approving with driver:', error);
+                alert('Error approving submission');
             }
         }
+
+        function openModal(imageUrl) {
+            document.getElementById('modalImage').src = imageUrl;
+            document.getElementById('imageModal').classList.add('active');
+        }
         
+        function closeModal() {
+            document.getElementById('imageModal').classList.remove('active');
+        }
+
         // Initialize
         if (checkAuth()) {
             loadDrivers();
             loadSubmissions();
             
-            // Real-time updates (optional)
-            const subscription = supabaseClient
-                .channel('submissions_changes')
-                .on('postgres_changes', { 
-                    event: '*', 
-                    schema: 'public', 
-                    table: 'submissions' 
-                }, payload => {
-                    console.log('Change received!', payload);
-                    loadSubmissions();
-                })
-                .subscribe();
-        }
-    </script>
-</body>
-</html>
-            
-            // Real-time updates (optional)
             const subscription = supabaseClient
                 .channel('submissions_changes')
                 .on('postgres_changes', { 
