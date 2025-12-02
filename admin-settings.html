@@ -247,6 +247,7 @@
         <div class="tabs">
             <button class="tab active" onclick="switchTab('products')">📦 Products</button>
             <button class="tab" onclick="switchTab('timeslots')">🕐 Time Slots</button>
+            <button class="tab" onclick="switchTab('drivers')">🚚 Drivers</button>
         </div>
 
         <div id="message" class="message"></div>
@@ -297,14 +298,30 @@
                 </div>
             </div>
         </div>
-    </div>
+
+        <!-- Drivers Tab -->
+        <div id="drivers-tab" class="tab-content">
+            <div class="settings-card">
+                <h2>Manage Drivers</h2>
+                <div class="form-group">
+                    <label>Add New Driver</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px;">
+                        <input type="text" id="driverName" placeholder="Name">
+                        <input type="email" id="driverEmail" placeholder="Email">
+                        <input type="text" id="driverPhone" placeholder="Phone">
+                        <input type="password" id="driverPassword" placeholder="Password">
+                        <button class="btn btn-success" onclick="addDriver()">Add Driver</button>
+                    </div>
+                </div>
+                
+                <div class="items-list" id="driversList">
+                    <div class="empty-state">Loading drivers...</div>
+                </div>
+            </div>
+        </div>
 
     <script>
         // ⚠️ REPLACE THESE WITH YOUR SUPABASE CREDENTIALS
-        //const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-        //const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-
-              // ⚠️ REPLACE THESE WITH YOUR SUPABASE CREDENTIALS
         const SUPABASE_URL = 'https://lkelfnsrauxwqpmvieck.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZWxmbnNyYXV4d3FwbXZpZWNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2NDUxMTQsImV4cCI6MjA4MDIyMTExNH0.td0ULBGau-Bm3k11VTJtvDN516NYvukgLIOFVHzYvVo';
         
@@ -312,6 +329,7 @@
         
         let products = [];
         let timeSlots = [];
+        let drivers = [];
 
         // Check authentication
         (function() {
@@ -570,9 +588,144 @@
             }
         }
 
+        // ===== DRIVERS FUNCTIONS =====
+        
+        async function loadDrivers() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('drivers')
+                    .select('*')
+                    .order('name');
+                
+                if (error) throw error;
+                
+                drivers = data || [];
+                displayDrivers();
+            } catch (error) {
+                console.error('Error loading drivers:', error);
+                document.getElementById('driversList').innerHTML = 
+                    '<div class="empty-state">No drivers yet. Add your first driver above!</div>';
+            }
+        }
+
+        function displayDrivers() {
+            const container = document.getElementById('driversList');
+            
+            if (drivers.length === 0) {
+                container.innerHTML = '<div class="empty-state">No drivers yet. Add your first driver above!</div>';
+                return;
+            }
+            
+            container.innerHTML = drivers.map(driver => `
+                <div class="slot-item">
+                    <div class="slot-info">
+                        <div class="slot-detail">
+                            <span class="slot-label">Name</span>
+                            <span class="slot-value">${driver.name}</span>
+                        </div>
+                        <div class="slot-detail">
+                            <span class="slot-label">Email</span>
+                            <span class="slot-value">${driver.email}</span>
+                        </div>
+                        <div class="slot-detail">
+                            <span class="slot-label">Phone</span>
+                            <span class="slot-value">${driver.phone || 'N/A'}</span>
+                        </div>
+                        <div class="slot-detail">
+                            <span class="slot-label">Status</span>
+                            <span class="slot-value">${driver.is_available ? '✅ Available' : '❌ Busy'}</span>
+                        </div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn btn-primary btn-small" onclick="toggleDriverAvailability('${driver.id}', ${!driver.is_available})">
+                            ${driver.is_available ? 'Mark Busy' : 'Mark Available'}
+                        </button>
+                        <button class="btn btn-danger btn-small" onclick="deleteDriver('${driver.id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function addDriver() {
+            const name = document.getElementById('driverName').value.trim();
+            const email = document.getElementById('driverEmail').value.trim();
+            const phone = document.getElementById('driverPhone').value.trim();
+            const password = document.getElementById('driverPassword').value;
+            
+            if (!name || !email || !password) {
+                showMessage('Please fill in name, email and password', 'error');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('drivers')
+                    .insert([{
+                        name: name,
+                        email: email,
+                        phone: phone,
+                        password_hash: btoa(password) // Simple encoding - in production use proper hashing
+                    }])
+                    .select();
+                
+                if (error) throw error;
+                
+                document.getElementById('driverName').value = '';
+                document.getElementById('driverEmail').value = '';
+                document.getElementById('driverPhone').value = '';
+                document.getElementById('driverPassword').value = '';
+                showMessage('Driver added successfully!', 'success');
+                loadDrivers();
+            } catch (error) {
+                console.error('Error adding driver:', error);
+                if (error.code === '23505') {
+                    showMessage('Email already exists', 'error');
+                } else {
+                    showMessage('Error adding driver', 'error');
+                }
+            }
+        }
+
+        async function toggleDriverAvailability(id, newStatus) {
+            try {
+                const { error } = await supabaseClient
+                    .from('drivers')
+                    .update({ is_available: newStatus })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                showMessage('Driver status updated!', 'success');
+                loadDrivers();
+            } catch (error) {
+                console.error('Error updating driver:', error);
+                showMessage('Error updating driver', 'error');
+            }
+        }
+
+        async function deleteDriver(id) {
+            if (!confirm('Are you sure you want to delete this driver?')) return;
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('drivers')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                showMessage('Driver deleted successfully!', 'success');
+                loadDrivers();
+            } catch (error) {
+                console.error('Error deleting driver:', error);
+                showMessage('Error deleting driver', 'error');
+            }
+        }
+
         // Initialize
         loadProducts();
         loadTimeSlots();
+        loadDrivers();
     </script>
 </body>
 </html>
