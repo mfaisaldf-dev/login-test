@@ -743,21 +743,6 @@
             event.currentTarget.classList.add('selected');
         }
 
-                // When clicking "Approve (Assign Driver)"
-        function approveWithDriver(submissionId) {
-            const driverSelect = document.getElementById('driverSelect');
-            driverSelect.innerHTML = '<option value="">-- Choose a driver --</option>';
-            
-            allDrivers.forEach(driver => {
-                const option = document.createElement('option');
-                option.value = driver.id;
-                option.textContent = `${driver.name} (${driver.email}) - ${driver.is_available ? 'Available' : 'Busy'}`;
-                driverSelect.appendChild(option);
-            });
-            
-            document.getElementById('assignModal').classList.add('active');
-        }
-
         async function confirmAssignment() {
             if (!selectedDriverId) {
                 alert('Please select a driver');
@@ -789,6 +774,23 @@
         if (checkAuth()) {
             loadDrivers();
             loadSubmissions();
+            
+            // Real-time updates (optional)
+            const subscription = supabaseClient
+                .channel('submissions_changes')
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'submissions' 
+                }, payload => {
+                    console.log('Change received!', payload);
+                    loadSubmissions();
+                })
+                .subscribe();
+        }
+    </script>
+</body>
+</html>
             
             // Real-time updates (optional)
             const subscription = supabaseClient
