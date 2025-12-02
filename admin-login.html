@@ -145,7 +145,8 @@
         const SUPABASE_URL = 'https://lkelfnsrauxwqpmvieck.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxrZWxmbnNyYXV4d3FwbXZpZWNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2NDUxMTQsImV4cCI6MjA4MDIyMTExNH0.td0ULBGau-Bm3k11VTJtvDN516NYvukgLIOFVHzYvVo';
         
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         const form = document.getElementById('loginForm');
         const loginBtn = document.getElementById('loginBtn');
@@ -187,15 +188,16 @@
             const password = document.getElementById('password').value;
             
             try {
-                // Verify admin credentials
-                const { data, error } = await supabase.rpc('verify_admin_login', {
+                // Verify admin credentials using RPC function
+                const { data, error } = await supabaseClient.rpc('verify_admin_login', {
                     admin_email: email,
                     admin_password: password
                 });
                 
                 if (error) {
-                    // If function doesn't exist, try direct query (less secure)
-                    const { data: adminData, error: queryError } = await supabase
+                    // If RPC function doesn't exist, try direct query (fallback)
+                    console.log('RPC error, trying fallback method:', error);
+                    const { data: adminData, error: queryError } = await supabaseClient
                         .from('admin_users')
                         .select('*')
                         .eq('email', email)
@@ -205,8 +207,8 @@
                         throw new Error('Invalid credentials');
                     }
                     
-                    // Simple password check (you should use proper hashing)
-                    // This is a fallback - the RPC function is more secure
+                    // Note: Direct password verification is not secure without proper RPC
+                    // This is just a fallback - make sure to create the RPC function
                 }
                 
                 // Store session token with timestamp
