@@ -200,6 +200,10 @@
             background: #f8d7da;
             color: #721c24;
         }
+        .status-completed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
         .action-buttons {
             display: flex;
             gap: 10px;
@@ -352,6 +356,63 @@
         .btn-success:hover {
             background: #218838;
         }
+        .activity-logs-section {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+        }
+        .activity-log-item {
+            padding: 10px;
+            background: white;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .activity-log-time {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+        .activity-log-type {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .log-type-start_work {
+            background: #cce5ff;
+            color: #004085;
+        }
+        .log-type-progress_update {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .log-type-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        .activity-log-media {
+            margin-top: 8px;
+        }
+        .activity-log-media img,
+        .activity-log-media video {
+            max-width: 150px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .activity-log-media img:hover {
+            opacity: 0.8;
+        }
+        .no-activities {
+            color: #999;
+            font-style: italic;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -441,6 +502,7 @@
         let allSubmissions = [];
         let allDrivers = [];
         let currentSubmissionId = null;
+        let activityLogs = {};
 
         // CRITICAL: Check authentication immediately
         (function() {
@@ -496,6 +558,10 @@
                 if (error) throw error;
                 
                 allSubmissions = data;
+                
+                // Load activity logs
+                await loadActivityLogs();
+                
                 updateStats();
                 loadProductFilter();
                 filterSubmissions();
@@ -504,6 +570,34 @@
             } catch (error) {
                 console.error('Error loading submissions:', error);
                 document.getElementById('loading').innerHTML = 'Error loading submissions. Please refresh the page.';
+            }
+        }
+
+        // Load activity logs for all submissions
+        async function loadActivityLogs() {
+            try {
+                const submissionIds = allSubmissions.map(s => s.id);
+                
+                if (submissionIds.length === 0) return;
+                
+                const { data, error } = await supabaseClient
+                    .from('activity_logs')
+                    .select('*')
+                    .in('submission_id', submissionIds)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                // Group by submission_id
+                activityLogs = {};
+                data.forEach(log => {
+                    if (!activityLogs[log.submission_id]) {
+                        activityLogs[log.submission_id] = [];
+                    }
+                    activityLogs[log.submission_id].push(log);
+                });
+            } catch (error) {
+                console.error('Error loading activity logs:', error);
             }
         }
 
@@ -601,6 +695,9 @@
                 if (submission.drivers) {
                     driverInfo = `${submission.drivers.name} (${submission.drivers.email})`;
                 }
+
+                // Get activity logs for this submission
+                const logs = activityLogs[submission.id] || [];
                 
                 return `
                     <div class="submission-card">
@@ -646,6 +743,33 @@
                                 </div>
                             ` : ''}
                         </div>
+
+                        ${logs.length > 0 ? `
+                            <div class="activity-logs-section">
+                                <strong style="display: block; margin-bottom: 10px;">📋 Driver Activity Logs:</strong>
+                                ${logs.map(log => `
+                                    <div class="activity-log-item">
+                                        <div class="activity-log-time">${new Date(log.created_at).toLocaleString()}</div>
+                                        <span class="activity-log-type log-type-${log.action_type}">${log.action_type.replace('_', ' ')}</span>
+                                        <div style="margin-top: 5px;">${log.description}</div>
+                                        ${log.media_url ? `
+                                            <div class="activity-log-media">
+                                                ${log.media_type && log.media_type.startsWith('image/') ? `
+                                                    <img src="${log.media_url}" alt="Activity photo" onclick="window.open('${log.media_url}', '_blank')">
+                                                ` : log.media_type && log.media_type.startsWith('video/') ? `
+                                                    <video src="${log.media_url}" controls style="max-width: 300px;"></video>
+                                                ` : ''}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : submission.driver_id ? `
+                            <div class="activity-logs-section">
+                                <div class="no-activities">No activity logs yet</div>
+                            </div>
+                        ` : ''}
+                        
                         <div class="submission-footer">
                             <div class="action-buttons">
                                 ${submission.status === 'pending' && hasTimeSlot ? `
