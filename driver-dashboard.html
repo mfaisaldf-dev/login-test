@@ -212,10 +212,64 @@
             font-family: inherit;
             resize: vertical;
             min-height: 80px;
+            margin-bottom: 10px;
         }
         .progress-form textarea:focus {
             outline: none;
             border-color: #11998e;
+        }
+        .file-upload-section {
+            margin-bottom: 10px;
+        }
+        .file-upload-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        .file-input-button {
+            background: #f8f9fa;
+            border: 2px dashed #cbd5e0;
+            padding: 15px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        .file-input-button:hover {
+            border-color: #11998e;
+            background: #f0f9f8;
+        }
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+        .file-preview {
+            margin-top: 10px;
+            display: none;
+        }
+        .file-preview img,
+        .file-preview video {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 6px;
+            margin-top: 5px;
+        }
+        .file-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .file-size-warning {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 5px;
         }
         .progress-form-actions {
             display: flex;
@@ -236,6 +290,23 @@
             border-radius: 4px;
             font-size: 14px;
             color: #666;
+        }
+        .progress-item-media {
+            margin-top: 8px;
+        }
+        .progress-item-media img,
+        .progress-item-media video {
+            max-width: 150px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .progress-item-media img:hover {
+            opacity: 0.8;
+        }
+        .activity-time {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 4px;
         }
         .empty-state {
             text-align: center;
@@ -308,6 +379,7 @@
         
         let driverId = '';
         let myJobs = [];
+        let activityLogs = {};
 
         // Check authentication
         (function() {
@@ -326,7 +398,54 @@
             
             driverId = localStorage.getItem('driverId');
             document.getElementById('driverName').textContent = localStorage.getItem('driverName');
+            
+            // Setup file preview handlers
+            setupFilePreviewHandlers();
         })();
+
+        function setupFilePreviewHandlers() {
+            // Will be called after job cards are rendered
+            document.addEventListener('change', function(e) {
+                if (e.target && e.target.type === 'file') {
+                    handleFilePreview(e.target);
+                }
+            });
+        }
+
+        function handleFilePreview(input) {
+            const jobId = input.id.replace('progress-file-', '');
+            const preview = document.getElementById(`file-preview-${jobId}`);
+            const fileInfo = document.getElementById(`file-info-${jobId}`);
+            
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const maxSize = 10 * 1024 * 1024; // 10MB
+                
+                // Check file size
+                if (file.size > maxSize) {
+                    fileInfo.innerHTML = '<span class="file-size-warning">⚠️ File too large! Maximum size is 10MB</span>';
+                    preview.style.display = 'none';
+                    input.value = '';
+                    return;
+                }
+                
+                // Show file info
+                const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+                fileInfo.innerHTML = `Selected: ${file.name} (${sizeInMB} MB)`;
+                
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (file.type.startsWith('image/')) {
+                        preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                    } else if (file.type.startsWith('video/')) {
+                        preview.innerHTML = `<video src="${e.target.result}" controls></video>`;
+                    }
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
 
         function logout() {
             localStorage.removeItem('driverToken');
@@ -355,6 +474,10 @@
                 if (error) throw error;
                 
                 myJobs = data || [];
+                
+                // Load activity logs for each job
+                await loadActivityLogs();
+                
                 updateStats();
                 displayJobs();
                 
@@ -362,6 +485,34 @@
             } catch (error) {
                 console.error('Error loading jobs:', error);
                 document.getElementById('loading').innerHTML = 'Error loading assignments. Please refresh the page.';
+            }
+        }
+
+        // Load activity logs
+        async function loadActivityLogs() {
+            try {
+                const submissionIds = myJobs.map(j => j.id);
+                
+                if (submissionIds.length === 0) return;
+                
+                const { data, error } = await supabaseClient
+                    .from('activity_logs')
+                    .select('*')
+                    .in('submission_id', submissionIds)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                // Group by submission_id
+                activityLogs = {};
+                data.forEach(log => {
+                    if (!activityLogs[log.submission_id]) {
+                        activityLogs[log.submission_id] = [];
+                    }
+                    activityLogs[log.submission_id].push(log);
+                });
+            } catch (error) {
+                console.error('Error loading activity logs:', error);
             }
         }
 
@@ -406,6 +557,9 @@
                 
                 const assignedDate = new Date(job.assigned_at).toLocaleString();
                 
+                // Get activity logs for this job
+                const logs = activityLogs[job.id] || [];
+                
                 return `
                     <div class="job-card">
                         <div class="job-header">
@@ -439,7 +593,26 @@
                             ` : ''}
                         </div>
 
-                        ${job.work_progress ? `
+                        ${logs.length > 0 ? `
+                            <div class="progress-history">
+                                <strong>Activity History:</strong>
+                                ${logs.map(log => `
+                                    <div class="progress-item">
+                                        <div class="activity-time">${new Date(log.created_at).toLocaleString()}</div>
+                                        <div>${log.description}</div>
+                                        ${log.media_url ? `
+                                            <div class="progress-item-media">
+                                                ${log.media_type && log.media_type.startsWith('image/') ? `
+                                                    <img src="${log.media_url}" alt="Activity photo" onclick="window.open('${log.media_url}', '_blank')">
+                                                ` : log.media_type && log.media_type.startsWith('video/') ? `
+                                                    <video src="${log.media_url}" controls></video>
+                                                ` : ''}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : job.work_progress ? `
                             <div class="progress-history">
                                 <strong>Latest Update:</strong>
                                 <div class="progress-item">${job.work_progress}</div>
@@ -459,6 +632,19 @@
                         <div id="progress-form-${job.id}" class="progress-form">
                             <label style="display: block; margin-bottom: 8px; color: #333; font-weight: 500;">Progress Update</label>
                             <textarea id="progress-text-${job.id}" placeholder="Enter progress update..."></textarea>
+                            
+                            <div class="file-upload-section">
+                                <label class="file-upload-label">Attach Photo/Video (Optional, Max 10MB)</label>
+                                <div class="file-input-wrapper">
+                                    <label for="progress-file-${job.id}" class="file-input-button">
+                                        📷 Choose Photo/Video
+                                    </label>
+                                    <input type="file" id="progress-file-${job.id}" accept="image/*,video/*">
+                                </div>
+                                <div id="file-preview-${job.id}" class="file-preview"></div>
+                                <div id="file-info-${job.id}" class="file-info"></div>
+                            </div>
+                            
                             <div class="progress-form-actions">
                                 <button class="btn btn-start" onclick="submitProgress('${job.id}')">Submit Update</button>
                                 <button class="btn" onclick="toggleProgressForm('${job.id}')" style="background: #6c757d; color: white;">Cancel</button>
@@ -474,6 +660,17 @@
             if (!confirm('Start working on this job?')) return;
             
             try {
+                // Create activity log
+                await supabaseClient
+                    .from('activity_logs')
+                    .insert([{
+                        submission_id: jobId,
+                        driver_id: driverId,
+                        action_type: 'start_work',
+                        description: 'Work started'
+                    }]);
+                
+                // Update submission
                 const { error } = await supabaseClient
                     .from('submissions')
                     .update({ 
@@ -500,16 +697,64 @@
         // Submit progress update
         async function submitProgress(jobId) {
             const textarea = document.getElementById(`progress-text-${jobId}`);
+            const fileInput = document.getElementById(`progress-file-${jobId}`);
             const progress = textarea.value.trim();
             
-            if (!progress) {
-                alert('Please enter a progress update');
+            if (!progress && !fileInput.files[0]) {
+                alert('Please enter a progress update or attach a photo/video');
                 return;
             }
             
             try {
+                submitBtn = event.target;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Uploading...';
+                
+                let mediaUrl = null;
+                let mediaType = null;
+                
+                // Upload file if selected
+                if (fileInput.files[0]) {
+                    const file = fileInput.files[0];
+                    const maxSize = 10 * 1024 * 1024; // 10MB
+                    
+                    if (file.size > maxSize) {
+                        alert('File too large! Maximum size is 10MB');
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Submit Update';
+                        return;
+                    }
+                    
+                    const fileName = `${driverId}_${Date.now()}_${file.name}`;
+                    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                        .from('driver-media')
+                        .upload(fileName, file);
+                    
+                    if (uploadError) throw uploadError;
+                    
+                    const { data: { publicUrl } } = supabaseClient.storage
+                        .from('driver-media')
+                        .getPublicUrl(fileName);
+                    
+                    mediaUrl = publicUrl;
+                    mediaType = file.type;
+                }
+                
+                // Create activity log
+                await supabaseClient
+                    .from('activity_logs')
+                    .insert([{
+                        submission_id: jobId,
+                        driver_id: driverId,
+                        action_type: 'progress_update',
+                        description: progress || 'Media uploaded',
+                        media_url: mediaUrl,
+                        media_type: mediaType
+                    }]);
+                
+                // Update submission progress
                 const timestamp = new Date().toLocaleString();
-                const updateText = `[${timestamp}] ${progress}`;
+                const updateText = `[${timestamp}] ${progress || 'Media uploaded'}`;
                 
                 const { error } = await supabaseClient
                     .from('submissions')
@@ -519,11 +764,19 @@
                 if (error) throw error;
                 
                 textarea.value = '';
+                fileInput.value = '';
+                document.getElementById(`file-preview-${jobId}`).style.display = 'none';
+                document.getElementById(`file-info-${jobId}`).innerHTML = '';
                 toggleProgressForm(jobId);
                 loadJobs();
             } catch (error) {
                 console.error('Error updating progress:', error);
                 alert('Error submitting progress');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Update';
+                }
             }
         }
 
@@ -532,10 +785,22 @@
             if (!confirm('Mark this job as completed?')) return;
             
             try {
+                // Create activity log
+                await supabaseClient
+                    .from('activity_logs')
+                    .insert([{
+                        submission_id: jobId,
+                        driver_id: driverId,
+                        action_type: 'completed',
+                        description: 'Job completed successfully'
+                    }]);
+                
+                // Update submission
                 const { error } = await supabaseClient
                     .from('submissions')
                     .update({ 
                         work_status: 'completed',
+                        status: 'completed',
                         completed_at: new Date().toISOString(),
                         work_progress: (myJobs.find(j => j.id === jobId)?.work_progress || '') + '\n[Completed] Job finished successfully'
                     })
@@ -544,6 +809,7 @@
                 if (error) throw error;
                 
                 loadJobs();
+                alert('Job marked as completed! Admin will be notified.');
             } catch (error) {
                 console.error('Error completing work:', error);
                 alert('Error updating status');
